@@ -13,7 +13,7 @@ fun <R> processEmployee(entry: String): URIO<R, ProcessingResult> where R : Cale
                 .recover(::identity)
 
 fun <R> toAction(employee: Employee): URIO<R, ProcessingResult> where R : CalendarEnv, R : TemplateEnv =
-    ask(CalendarEnv::today).flatMap { today ->
+    getToday().flatMap { today ->
         just(employee)
                 .filterTo(::NothingToDo, isBirthday(today))
                 .flatMap(::toEmail)

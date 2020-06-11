@@ -8,11 +8,12 @@ version '1.0-SNAPSHOT'
 repositories {
     mavenCentral()
     maven { url "https://jitpack.io" }
+    mavenLocal()
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    implementation 'it.msec:kio:0.4'
+    implementation 'it.msec:kio:0.5-SNAPSHOT'
 
     testCompile "junit:junit:4.12"
     testCompile 'com.willowtreeapps.assertk:assertk-jvm:0.19'

@@ -1,27 +1,37 @@
+@file:Suppress("FunctionName")
+
 package it.msec.kata.birthday
 
 import it.msec.kio.*
-import it.msec.kio.common.composition.andThen
+import it.msec.kio.common.composition.then
+import it.msec.kio.common.composition.with
 import it.msec.kio.common.functions.identity
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-fun <R> processEmployee(entry: String): URIO<R, ProcessingResult> where R : CalendarEnv, R : TemplateEnv =
-        (::splitColumns andThen ::validateColumns)(entry)
-                .flatMap(::toEmployee)
-                .flatMap(::toAction)
-                .recover(::identity)
+fun <R, T> `merge error and success results`(e: KIO<R, T, T>): URIO<R, T> = e.recover(::identity)
 
-fun <R> toAction(employee: Employee): URIO<R, ProcessingResult> where R : CalendarEnv, R : TemplateEnv =
-    getToday().flatMap { today ->
-        just(employee)
-                .filterTo(::NothingToDo, isBirthday(today))
-                .flatMap(::toEmail)
-                .map(::EmailReady)
-                .recover(::identity)
-    }
+fun <R> processEmployee(entry: String): URIO<R, ProcessingResult> where R : CalendarEnv, R : TemplateEnv = (
+        ::`split entry columns`
+                then ::`validate column values`
+                then ::`convert to employee`
+                then ::`define the action to execute`
+                then ::`merge error and success results`
+        )(entry)
 
-fun toEmail(e: Employee): URIO<TemplateEnv, Email> =
+fun <R> `define the action to execute`(employee: Employee): URIO<R, ProcessingResult> where R : CalendarEnv, R : TemplateEnv = (
+        ::`take only if it's the employee birthday` with ::`today date`
+                then ::`generate email content`
+                then ::`define the send email action`
+                then ::`merge error and success results`
+        )(employee)
+
+fun `define the send email action`(e: Email) = EmailReady(e)
+
+fun `take only if it's the employee birthday`(e: Employee, date: LocalDate): IO<ProcessingResult, Employee> =
+        just(e).filterTo(::NothingToDo, isBirthday(date))
+
+fun `generate email content`(e: Employee): URIO<TemplateEnv, Email> =
         formatSubject(e)
                 .flatMapT { _ -> formatBody(e) }
                 .map { (subject, body) -> Email(e.email, subject, body) }
@@ -31,21 +41,21 @@ fun isBirthday(today: LocalDate): (Employee) -> Boolean = { e ->
             && today.month == e.birthday.month
 }
 
-fun toEmployee(c: EntryColumns): IO<ConversionError, Employee> = unsafe {
-            Employee(
-                    surname = c.columns[0],
-                    name = c.columns[1],
-                    email = EmailAddress(c.columns[3]),
-                    birthday = LocalDate.parse(c.columns[2], DateTimeFormatter.ofPattern("yyyy/MM/dd"))
-            )
-        }.mapError { ConversionError(c.raw) }
+fun `convert to employee`(c: EntryColumns): IO<ConversionError, Employee> = unsafe {
+    Employee(
+            surname = c.columns[0],
+            name = c.columns[1],
+            email = EmailAddress(c.columns[3]),
+            birthday = LocalDate.parse(c.columns[2], DateTimeFormatter.ofPattern("yyyy/MM/dd"))
+    )
+}.mapError { ConversionError(c.raw) }
 
-fun splitColumns(entry: String): EntryColumns =
+fun `split entry columns`(entry: String): EntryColumns =
         entry.split(",")
                 .map(String::trim)
                 .let { EntryColumns(entry, it) }
 
-fun validateColumns(c: EntryColumns): IO<CsvFormatError, EntryColumns> =
+fun `validate column values`(c: EntryColumns): IO<CsvFormatError, EntryColumns> =
         if (c.columns.size == 4)
             just(c)
         else

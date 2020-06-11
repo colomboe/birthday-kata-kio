@@ -1,4 +1,4 @@
-package it.msec.kata.birthday
+package it.msec.kata.decl
 
 import it.msec.kio.*
 import java.time.LocalDate
@@ -26,7 +26,7 @@ interface FileEnv {
 
 interface KataEnv : CalendarEnv, LoggerEnv, MailSenderEnv, FileEnv, TemplateEnv
 
-fun `today date`(): URIO<CalendarEnv, LocalDate> = ask { env -> env.today() }
+fun getToday(): URIO<CalendarEnv, LocalDate> = ask { env -> env.today() }
 fun readLines(f: FilePath): RIO<FileEnv, List<String>> = ask { env -> env.readLines(f) }
 fun log(s: String): URIO<LoggerEnv, Unit> = ask { env -> env.log(s) }
 fun formatSubject(e: Employee): URIO<TemplateEnv, String> = askPure { env -> env.formatSubject(e) }
